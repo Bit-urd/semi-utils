@@ -1,16 +1,24 @@
+import os
 from datetime import datetime
 
+import exifread
 from PIL import Image
 from PIL.Image import Transpose
-
-from utils import get_exif
 
 
 class ImageContainer(object):
     def __init__(self, path):
         self.img = Image.open(path)
-        self.exif = get_exif(self.img)
-
+        arw_path = path.replace("jpg", "ARW")
+        if os.path.isfile(arw_path):
+            with open(arw_path, 'rb') as f:
+                self.exif = exifread.process_file(f)
+        else:
+            with open(path, 'rb') as f:
+                self.exif = exifread.process_file(f)
+        for k in list(self.exif.keys()):
+            if " " in k:
+                self.exif[k.split(" ")[-1]] = "%s"%self.exif[k]
         # 相机机型
         self.model = self.exif['Model'] if 'Model' in self.exif else '无'
         # 相机制造商
@@ -22,16 +30,16 @@ class ImageContainer(object):
             if 'DateTimeOriginal' in self.exif \
             else datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         # 焦距
-        self.focal_length = int(self.exif['FocalLength']) if 'FocalLength' in self.exif else 0
+        self.focal_length = eval(self.exif['FocalLength']) if 'FocalLength' in self.exif else 0
         # 等效焦距
-        self.focal_length_in_35mm_film = int(self.exif['FocalLengthIn35mmFilm']) \
+        self.focal_length_in_35mm_film = self.exif['FocalLengthIn35mmFilm'] \
             if 'FocalLengthIn35mmFilm' in self.exif else self.focal_length
         # 是否使用等效焦距
         self.use_equivalent_focal_length = False
         # 光圈大小
-        self.f_number = float(self.exif['FNumber']) if 'FNumber' in self.exif else .0
+        self.f_number = eval(self.exif['FNumber']) if 'FNumber' in self.exif else .0
         # 曝光时间
-        self.exposure_time = str(self.exif['ExposureTime'].real) \
+        self.exposure_time = str(self.exif['ExposureTime']) \
             if 'ExposureTime' in self.exif else '0s'
         # 感光度
         self.iso = self.exif['ISOSpeedRatings'] if 'ISOSpeedRatings' in self.exif else 0
